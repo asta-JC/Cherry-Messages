@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">
+  <!-- Background -->
+  <rect width="108" height="108" rx="24" fill="#F50D46"/>
+
+  <!-- Cherry Stem & Leaf -->
+  <path d="M54 33 C54 24, 61 19, 67 17" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M54 25 C45 19, 38 23, 42 29 C46 32, 51 29, 54 25 Z" fill="#FFFFFF"/>
+
+  <!-- Chat Bubble / Cherry Body -->
+  <path d="M54 33 C39.6 33 28 43.1 28 55.5 C28 61.4 30.7 66.8 35.1 70.8 L31 79 L41.8 75.3 C45.6 76.9 49.7 77.8 54 77.8 C68.4 77.8 80 67.7 80 55.5 C80 43.1 68.4 33 54 33 Z" fill="#FFFFFF"/>
+
+  <!-- Message Dots -->
+  <circle cx="43" cy="55.5" r="3.8" fill="#F50D46"/>
+  <circle cx="54" cy="55.5" r="3.8" fill="#F50D46"/>
+  <circle cx="65" cy="55.5" r="3.8" fill="#F50D46"/>
+</svg>
