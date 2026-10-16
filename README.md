@@ -1,78 +1,100 @@
-# Cherry Messages // Asta v1.0
+<div align="center">
+
+# 🍒 Cherry Messages
 
 <p align="center">
-  <img src="screenshots/1.png" width="250" alt="Cherry Messages Screenshot 1" />
-  <img src="screenshots/2.png" width="250" alt="Cherry Messages Screenshot 2" />
-  <img src="screenshots/3.png" width="250" alt="Cherry Messages Screenshot 3" />
+  <img src="app/src/main/res/drawable/icon.png" width="108" alt="Cherry Messages Logo" />
 </p>
 
-**Cherry Messages** is a modern, high-performance, offline-first Android SMS & MMS messenger built with Jetpack Compose and Material Design 3. Designed with a striking "Cherry Red Futuristic" dark aesthetic, it delivers a lightning-fast messaging experience, robust default SMS app compliance, full-text search, automated retry queues, and secure backup/restore capabilities.
+> A futuristic, high-performance, offline-first Android SMS & MMS messenger with vibrant cherry red accents and robust delivery queues. 💬✨
+
+</div>
+
+---
+
+## 📱 Overview
+
+**Cherry Messages** is a modern, privacy-focused Android SMS & MMS messenger built with Jetpack Compose and Material 3. Designed as a full default SMS application, it delivers lightning-fast full-text search, persistent conversation management, automated retry queues via WorkManager, and secure backup and restore capabilities.
 
 ---
 
 ## ✨ Key Features
 
-- **Cherry Red Futuristic M3 UI**: Immersive dark theme featuring vibrant cherry red accents (`#FF2A55`), custom background images, dynamic profile pictures, and smooth Material Design 3 transitions.
-- **Offline-First & High Performance**: Local database powered by **Room** with **FTS4 (Full-Text Search)** for instant message querying across massive conversation threads.
-- **Default SMS App Compliance**: Fully compliant with Android's default SMS handler role (`Telephony.Sms`), enabling native SMS/MMS sending, receiving, broadcast receivers, and content provider synchronization.
-- **Reliable Delivery & WorkManager**: Background queueing and auto-retry mechanism for outgoing messages via **WorkManager** to ensure zero message loss even under poor network or radio signal conditions.
-- **Secure Backup & Restore**: Export and import encrypted or structured message backups directly using Android's Storage Access Framework (SAF).
-- **Rich Conversation Management**: Conversation list, thread detail view, contact search, attachment support, delivery status indicators, and notification management.
+- 🍒 **Cherry Red Futuristic Theme**: Immersive dark OLED theme featuring cherry red accents (`#FF2A55`), smooth transitions, and Material 3 components.
+- ⚡ **Offline-First & High Performance**: Local database powered by **Room** with **FTS4 (Full-Text Search)** for instant message querying across massive conversation threads.
+- 🛡️ **Default SMS App Compliance**: Fully compliant with Android's default SMS handler role (`Telephony.Sms`), enabling native SMS/MMS sending, receiving, broadcast receivers, and provider synchronization.
+- 🔄 **Reliable Delivery Queue**: Background queuing and automatic retry mechanism for outgoing messages via **WorkManager** to ensure zero message loss even under weak connectivity.
+- 🔐 **Secure Backup & Restore**: Export and import structured message backups directly using Android's Storage Access Framework (SAF).
+- 💬 **Rich Conversation Management**: Thread detail views, contact search, attachment support, delivery status indicators, and notification management.
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## 📸 Screenshots & UI Preview
 
-Cherry Messages adheres to clean architecture principles and modern Android development best practices:
-
-- **UI Framework**: Jetpack Compose, Material 3, Material Icons Extended, Edge-to-Edge display.
-- **Architecture Pattern**: MVVM (Model-View-ViewModel) with Repository pattern.
-- **Dependency Injection**: Hilt (Dagger).
-- **Concurrency**: Kotlin Coroutines & Flow for reactive asynchronous data streams.
-- **Local Storage**: Room Persistence Library with FTS4 full-text search extensions.
-- **Background Tasks**: Android WorkManager for reliable message retry worker management.
-- **Telephony**: `SmsManager`, `TelephonyProvider`, broadcast receivers (`SMS_RECEIVED_ACTION`, `WAP_PUSH_DELIVER`).
-
----
-
-## 📱 Screenshots
-
-| Conversation List | Chat Thread | Search & Filter | Settings & Customization |
+| Conversation List | Chat Thread | Search & Filter | Settings |
 | :---: | :---: | :---: | :---: |
-| <img src="screenshots/1.png" width="220"/> | <img src="screenshots/2.png" width="220"/> | <img src="screenshots/3.png" width="220"/> | <img src="screenshots/4.png" width="220"/> |
+| <img src="screenshots/1.png" width="200" alt="Conversation List" /> | <img src="screenshots/2.png" width="200" alt="Chat Thread" /> | <img src="screenshots/3.png" width="200" alt="Search & Filter" /> | <img src="screenshots/4.png" width="200" alt="Settings" /> |
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+- **UI Toolkit**: [Jetpack Compose](https://developer.android.com/jetpack/compose) & [Material 3](https://m3.material.io/)
+- **Architecture**: MVVM (Model-View-ViewModel) with Repository pattern and Unidirectional Data Flow
+- **Dependency Injection**: [Hilt](https://dagger.dev/hilt/) (Dagger)
+- **Concurrency**: Kotlin Coroutines & `StateFlow`
+- **Local Storage**: Room Persistence Library with FTS4 full-text search
+- **Background Tasks**: Android WorkManager for reliable message retry workers
+- **Telephony**: Android `SmsManager`, `TelephonyProvider`, broadcast receivers (`SMS_RECEIVED_ACTION`, `WAP_PUSH_DELIVER`)
+
+---
+
+## 📂 Project Structure
+
+```tree
+com.asta.cherrymessages/
+├── data/                   # Room database, DAOs, entities, and repositories
+├── di/                     # Hilt dependency injection modules
+├── receivers/              # SMS/MMS broadcast receivers & WAP push deliver
+├── services/               # Background telephony & headless SMS services
+├── ui/                     # Compose screens, components, conversation list, and theme
+├── util/                   # Permissions, phone formatters, and notification helpers
+├── workers/                # WorkManager background retry queues
+├── CherryMessagesApp.kt    # Application class
+└── MainActivity.kt         # Entry point activity & navigation host
+```
 
 ---
 
 ## 🚀 Getting Started & Build Instructions
 
 ### Prerequisites
-- Android Studio Ladybug / Koala or newer.
-- JDK 17 or higher.
-- Android SDK API level 26+ (Android 8.0 Oreo or higher; Android 14/15 recommended).
+- Android Studio Ladybug or newer
+- JDK 17 or higher
+- Android SDK 26+ (Target SDK 34+)
 
-### Building and Running
-1. Clone the repository:
+### Build Steps
+
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/asta-JC/Cherry-Messages.git
-   cd Cherry-Messages
-   ```
-2. Open the project in Android Studio, or build via command line:
-   ```bash
-   ./gradlew assembleDebug
-   ```
-3. Install the debug APK onto your connected physical Android device or emulator:
-   ```bash
-   ./gradlew installDebug
+   cd CherryMessages
    ```
 
----
+2. **Open in Android Studio**:
+   - Open Android Studio and select **Open**.
+   - Navigate to the cloned `CherryMessages` directory and let Gradle sync.
 
-## ⚙️ Setting as Default SMS App
+3. **Build & Run**:
+   - Connect an Android device or start an emulator.
+   - Run the app via Android Studio or execute via terminal:
+     ```bash
+     ./gradlew :app:assembleDebug
+     ```
 
-To enable full SMS sending, receiving, and database synchronization on real devices:
-1. Open **Cherry Messages**.
-2. When prompted on launch (or via Settings), grant the required permissions (`SEND_SMS`, `READ_SMS`, `RECEIVE_SMS`, `READ_CONTACTS`).
-3. Accept the system prompt to set **Cherry Messages** as your device's **Default SMS Application**.
+4. **Default SMS App Configuration**:
+   - Upon launch, accept system prompts to grant SMS permissions (`SEND_SMS`, `READ_SMS`, `RECEIVE_SMS`, `READ_CONTACTS`).
+   - Accept prompt to set **Cherry Messages** as the device's Default SMS Application for full features.
 
 ---
 

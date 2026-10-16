@@ -8,9 +8,7 @@ plugins {
 
 android {
     namespace = "com.asta.cherrymessages"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.asta.cherrymessages"
