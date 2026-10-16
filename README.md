@@ -78,10 +78,10 @@ To enable full SMS sending, receiving, and database synchronization on real devi
 
 ## 📄 License
 
-```
-Copyright (c) 2025 asta-JC. All rights reserved.
-```
+This project is developed as part of Asta's project series. Feel free to use and adapt for personal and educational use!
 
 ---
 
-Cherry Messages // Asta v1.0
+<p align="center">
+  Made with ❤️ & 🍒 by Asta
+</p>
