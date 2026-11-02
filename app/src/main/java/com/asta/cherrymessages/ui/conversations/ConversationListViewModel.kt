@@ -20,6 +20,8 @@ class ConversationListViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    fun refresh() { viewModelScope.launch { smsRepository.syncSystemSms() } }
+
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }

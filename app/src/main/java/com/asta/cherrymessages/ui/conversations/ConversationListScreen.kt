@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +44,10 @@ fun ConversationListScreen(
     @Suppress("UNUSED_PARAMETER") onStarredClick: () -> Unit = {},
     onSettingsClick: () -> Unit
 ) {
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        viewModel.refresh()
+        onPauseOrDispose {}
+    }
     val conversations by viewModel.conversations.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     var conversationToDelete by remember { mutableStateOf<Long?>(null) }
@@ -56,11 +62,11 @@ fun ConversationListScreen(
         AlertDialog(
             onDismissRequest = { conversationToDelete = null },
             title = {
-                Text("Delete Conversation", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Delete Conversation", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "Are you sure you want to delete this conversation?",
+                    "Remove this conversation from Cherry Messages? The original SMS remains on your phone and can reappear when messages refresh.",
                     color = CherryTextSecondary,
                     fontSize = 14.sp
                 )
@@ -73,16 +79,18 @@ fun ConversationListScreen(
                         }
                         conversationToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = CherryError)
+                    colors = ButtonDefaults.buttonColors(containerColor = CherryError, contentColor = MaterialTheme.colorScheme.onError)
                 ) {
-                    Text("Delete", color = Color.White)
+                    Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { conversationToDelete = null }
                 ) {
-                    Text("Cancel", color = Color.White)
+                    Text("Cancel")
                 }
             },
             containerColor = CherrySurface,
@@ -97,26 +105,17 @@ fun ConversationListScreen(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(CherryPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MarkChatUnread,
-                                contentDescription = "Cherry Messages icon",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        Image(
+                            painterResource(if (CherryBackground.luminance() < 0.5f) R.drawable.cherryapps_logo_full_dark else R.drawable.cherryapps_logo_full),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp).padding(2.dp), contentScale = ContentScale.Fit
+                        )
                         Text(
-                            "CHERRY MESSAGES",
+                            "Cherry Messages",
                             style = MaterialTheme.typography.titleSmall.copy(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp
                             ),
                             maxLines = 1
@@ -125,7 +124,7 @@ fun ConversationListScreen(
                 },
                 actions = {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Color.White)
+                        Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CherrySurface)
@@ -135,7 +134,7 @@ fun ConversationListScreen(
             FloatingActionButton(
                 onClick = onNewMessageClick,
                 containerColor = CherryPrimary,
-                contentColor = Color.White,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Icon(Icons.Rounded.Edit, contentDescription = "New Message")
@@ -146,6 +145,7 @@ fun ConversationListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CherrySurface)
+                    .navigationBarsPadding()
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -177,8 +177,8 @@ fun ConversationListScreen(
                     unfocusedBorderColor = Color.Transparent,
                     focusedContainerColor = CherrySurface,
                     unfocusedContainerColor = CherrySurface,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 singleLine = true
             )
@@ -188,6 +188,13 @@ fun ConversationListScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (filteredConversations.isEmpty()) item {
+                    Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(if (searchQuery.isBlank()) Icons.Rounded.Sms else Icons.Rounded.Search, contentDescription = null, tint = CherryPrimary, modifier = Modifier.size(40.dp).padding(bottom = 8.dp))
+                        Text(if (searchQuery.isBlank()) "Your messages will appear here" else "No matching messages", style = MaterialTheme.typography.titleMedium)
+                        Text(if (searchQuery.isBlank()) "Messages saved on this phone load automatically. Start a conversation with New message." else "Try a name, number, or message text.", color = CherryTextSecondary)
+                    }
+                }
                 items(filteredConversations, key = { it.threadId }) { conversation ->
                     ConversationItem(
                         conversation = conversation,
@@ -239,7 +246,7 @@ fun ConversationItem(
                 Icon(
                     imageVector = Icons.Rounded.Delete,
                     contentDescription = "Delete",
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onError
                 )
             }
         }
@@ -253,7 +260,7 @@ fun ConversationItem(
                     RoundedCornerShape(20.dp)
                 ),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = CherrySurface)
+            colors = CardDefaults.cardColors(containerColor = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f).compositeOver(CherrySurface) else CherrySurface)
         ) {
             Row(
                 modifier = Modifier
@@ -286,7 +293,8 @@ fun ConversationItem(
                             text = displayName,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontSize = 16.sp,
-                                color = Color.White
+                                fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurface
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -307,7 +315,7 @@ fun ConversationItem(
                     ) {
                         Text(
                             text = conversation.snippet.ifBlank { "No messages yet" },
-                            style = MaterialTheme.typography.bodyMedium.copy(color = CherryTextSecondary),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = if (conversation.unreadCount > 0) CherryTextPrimary else CherryTextSecondary, fontWeight = if (conversation.unreadCount > 0) FontWeight.SemiBold else FontWeight.Normal),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -324,7 +332,7 @@ fun ConversationItem(
                             ) {
                                 Text(
                                     text = conversation.unreadCount.toString(),
-                                    style = MaterialTheme.typography.labelSmall.copy(color = Color.White, fontSize = 11.sp)
+                                    style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onPrimary, fontSize = 11.sp)
                                 )
                             }
                         }

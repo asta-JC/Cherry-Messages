@@ -1,5 +1,7 @@
 package com.asta.cherrymessages.ui.onboarding
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import android.Manifest
 import android.os.Build
 import androidx.compose.foundation.background
@@ -34,6 +36,16 @@ fun OnboardingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val defaultSmsLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { viewModel.checkDefaultSmsApp() }
+    val requestDefault: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val manager = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (manager.isRoleHeld(android.app.role.RoleManager.ROLE_SMS)) viewModel.checkDefaultSmsApp()
+            else defaultSmsLauncher.launch(manager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_SMS))
+        } else viewModel.requestDefaultSmsApp(context)
+    }
 
     LifecycleResumeEffect(Unit) {
         viewModel.checkDefaultSmsApp()
@@ -52,8 +64,16 @@ fun OnboardingScreen(
 
     val permissionsState = rememberMultiplePermissionsState(permissions = permissionsList)
 
-    LaunchedEffect(permissionsState.allPermissionsGranted) {
-        viewModel.setPermissionsGranted(permissionsState.allPermissionsGranted)
+    val coreGranted = permissionsState.permissions.filter { it.permission != Manifest.permission.POST_NOTIFICATIONS }.all {
+        it.status == com.google.accompanist.permissions.PermissionStatus.Granted
+    }
+    LaunchedEffect(coreGranted) { viewModel.setPermissionsGranted(coreGranted) }
+
+    LaunchedEffect(uiState.permissionsGranted, uiState.isDefaultSmsApp) {
+        if (uiState.permissionsGranted && uiState.isDefaultSmsApp) viewModel.importSms()
+    }
+    LaunchedEffect(uiState.importComplete) {
+        if (uiState.importComplete) onOnboardingFinished()
     }
 
     Box(
@@ -65,6 +85,7 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -72,7 +93,14 @@ fun OnboardingScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(32.dp))
-                Box(
+                LaunchedEffect(uiState.permissionsGranted, uiState.isDefaultSmsApp) {
+        if (uiState.permissionsGranted && uiState.isDefaultSmsApp) viewModel.importSms()
+    }
+    LaunchedEffect(uiState.importComplete) {
+        if (uiState.importComplete) onOnboardingFinished()
+    }
+
+    Box(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(RoundedCornerShape(24.dp))
@@ -86,7 +114,7 @@ fun OnboardingScreen(
                     Icon(
                         imageVector = Icons.Rounded.Sms,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(40.dp)
                     )
                 }
@@ -95,13 +123,13 @@ fun OnboardingScreen(
                     text = "CHERRY MESSAGES",
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = 28.sp,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     ),
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Secure SMS Messaging",
+                    text = "Your messages, together",
                     style = MaterialTheme.typography.labelMedium.copy(
                         color = CherryTextSecondary
                     ),
@@ -128,7 +156,7 @@ fun OnboardingScreen(
                     PermissionRow(
                         title = "Permissions Access",
                         description = "Grant SMS and Contacts permissions to send and receive messages.",
-                        isGranted = permissionsState.allPermissionsGranted,
+                        isGranted = coreGranted,
                         onClick = { permissionsState.launchMultiplePermissionRequest() }
                     )
 
@@ -136,12 +164,12 @@ fun OnboardingScreen(
                         title = "Default SMS App",
                         description = "Set Cherry Messages as your default handler.",
                         isGranted = uiState.isDefaultSmsApp,
-                        onClick = { viewModel.requestDefaultSmsApp(context) }
+                        onClick = requestDefault
                     )
 
                     PermissionRow(
                         title = "Import Messages",
-                        description = "Sync existing messages from device.",
+                        description = "Existing SMS loads automatically after setup. If loading fails, tap Enable to retry.",
                         isGranted = uiState.importComplete,
                         onClick = { viewModel.importSms() }
                     )
@@ -154,8 +182,8 @@ fun OnboardingScreen(
             ) {
                 Button(
                     onClick = {
-                        if (permissionsState.allPermissionsGranted) {
-                            onOnboardingFinished()
+                        if (coreGranted) {
+                            if (!uiState.isDefaultSmsApp) requestDefault() else viewModel.importSms()
                         } else {
                             permissionsState.launchMultiplePermissionRequest()
                         }
@@ -167,8 +195,8 @@ fun OnboardingScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = CherryPrimary)
                 ) {
                     Text(
-                        text = if (permissionsState.allPermissionsGranted) "GET STARTED" else "GRANT PERMISSIONS",
-                        style = MaterialTheme.typography.labelLarge.copy(color = Color.White)
+                        text = if (coreGranted) if (uiState.isImporting) "Loading messages…" else "Continue" else "GRANT PERMISSIONS",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
 
@@ -197,7 +225,7 @@ fun PermissionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, color = Color.White)
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(

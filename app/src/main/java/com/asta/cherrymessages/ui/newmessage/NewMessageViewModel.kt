@@ -19,11 +19,20 @@ class NewMessageViewModel @Inject constructor(
     private val _recipient = MutableStateFlow("")
     val recipient: StateFlow<String> = _recipient.asStateFlow()
 
+    private val _recipientName = MutableStateFlow<String?>(null)
+    val recipientName: StateFlow<String?> = _recipientName.asStateFlow()
+
+    fun selectContact(name: String?, number: String) {
+        updateRecipient(number)
+        _recipientName.value = name?.takeIf { it.isNotBlank() }
+    }
+
     private val _messageBody = MutableStateFlow("")
     val messageBody: StateFlow<String> = _messageBody.asStateFlow()
 
     fun updateRecipient(newRecipient: String) {
-        _recipient.value = newRecipient.filter { it.isDigit() }
+        _recipientName.value = null
+        _recipient.value = newRecipient.filter { it.isDigit() || it == '+' || it == ' ' || it == '-' || it == '(' || it == ')' }
     }
 
     fun updateMessageBody(newBody: String) {

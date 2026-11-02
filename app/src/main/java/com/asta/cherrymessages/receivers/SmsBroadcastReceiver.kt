@@ -33,6 +33,7 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
+        if (action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION && Telephony.Sms.getDefaultSmsPackage(context) == context.packageName) return
         val pendingResult = goAsync()
 
         receiverScope.launch {

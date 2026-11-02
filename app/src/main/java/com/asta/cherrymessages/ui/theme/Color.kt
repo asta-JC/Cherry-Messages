@@ -1,15 +1,27 @@
 package com.asta.cherrymessages.ui.theme
 
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 
-val CherryBackground = Color(0xFF0A0A0F)
-val CherrySurface = Color(0xFF1C1622)
-val CherrySurfaceVariant = Color(0xFF261D30)
-val CherryPrimary = Color(0xFFFF2D55)
-val CherryPrimaryVariant = Color(0xFFFF1744)
-val CherryGlow = Color(0xFF6B0F26)
-val CherryBorder = Color(0xFF4A1A2E)
-val CherryTextPrimary = Color(0xFFFFFFFF)
-val CherryTextSecondary = Color(0xFF7A6F85)
-val CherrySuccess = Color(0xFF00E676)
-val CherryError = Color(0xFFFF1744)
+val CherryBackground: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.background
+val CherrySurface: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.surface
+val CherrySurfaceVariant: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+val CherryPrimary: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.primary
+val CherryPrimaryVariant: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.primary
+val CherryGlow: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.primaryContainer
+val CherryBorder: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.outlineVariant
+val CherryTextPrimary: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.onSurface
+val CherryTextSecondary: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+val CherrySuccess: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.tertiary
+val CherryError: androidx.compose.ui.graphics.Color
+    @Composable get() = MaterialTheme.colorScheme.error

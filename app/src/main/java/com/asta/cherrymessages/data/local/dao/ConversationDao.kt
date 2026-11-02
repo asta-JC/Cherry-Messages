@@ -31,6 +31,9 @@ interface ConversationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertConversations(conversations: List<ConversationEntity>)
 
+    @Query("UPDATE conversations SET unreadCount = (SELECT COUNT(*) FROM messages WHERE messages.threadId = :threadId AND type = 'inbox' AND isRead = 0) WHERE threadId = :threadId")
+    suspend fun refreshUnreadCount(threadId: Long)
+
     @Query("DELETE FROM conversations WHERE threadId = :threadId")
     suspend fun deleteConversation(threadId: Long)
 

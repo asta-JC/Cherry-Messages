@@ -40,7 +40,7 @@ class OnboardingViewModel @Inject constructor(
     fun checkDefaultSmsApp() {
         val context = getApplication<Application>()
         val defaultSms = Telephony.Sms.getDefaultSmsPackage(context)
-        val isDefault = defaultSms == context.packageName
+        val isDefault = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_SMS) else defaultSms == context.packageName
         _uiState.update { it.copy(isDefaultSmsApp = isDefault) }
     }
 
@@ -63,14 +63,16 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun importSms() {
+        if (_uiState.value.isImporting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isImporting = true) }
             try {
-                smsRepository.syncSystemSms()
+                val imported = smsRepository.syncSystemSms()
+                _uiState.update { it.copy(importComplete = imported) }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            _uiState.update { it.copy(isImporting = false, importComplete = true) }
+            _uiState.update { it.copy(isImporting = false) }
         }
     }
 

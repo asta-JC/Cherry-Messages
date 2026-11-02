@@ -17,3 +17,6 @@ local.properties
 .agent/
 .agent
 .idea/
+
+# Android distribution artifacts belong in GitHub Releases.
+*.apk

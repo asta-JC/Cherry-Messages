@@ -54,7 +54,9 @@ class SmsDeliverReceiver : BroadcastReceiver() {
                                 put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
                                 put(Telephony.Sms.THREAD_ID, threadId)
                             }
-                            context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+                            context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)?.let {
+                                smsRepository.linkSystemMessage(messageId, android.content.ContentUris.parseId(it))
+                            }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to insert into system telephony provider", e)
                         }

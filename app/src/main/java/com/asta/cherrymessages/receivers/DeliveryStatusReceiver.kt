@@ -29,10 +29,20 @@ class DeliveryStatusReceiver : BroadcastReceiver() {
         val messageId = intent.getLongExtra(EXTRA_MESSAGE_ID, -1L)
         if (messageId == -1L) return
 
+        val deliveryResult = resultCode
         val pendingResult = goAsync()
         scope.launch {
             try {
-                messageDao.updateMessageStatus(messageId, "delivered")
+                if (deliveryResult != android.app.Activity.RESULT_OK) return@launch
+                val allDelivered = synchronized(DeliveryStatusReceiver::class.java) {
+                    val prefs = context.getSharedPreferences("sms_delivery_results", Context.MODE_PRIVATE)
+                    val key = "message_$messageId"
+                    val parts = prefs.getStringSet(key, emptySet()).orEmpty().toMutableSet()
+                    parts.add(intent.getIntExtra("part_index", 0).toString())
+                    prefs.edit().putStringSet(key, parts).commit()
+                    parts.size >= intent.getIntExtra("part_count", 1)
+                }
+                if (allDelivered && messageDao.getMessageById(messageId)?.status != "failed") messageDao.updateMessageStatus(messageId, "delivered")
                 Log.d(TAG, "Message $messageId status updated to delivered")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update delivery status", e)

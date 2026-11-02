@@ -7,7 +7,7 @@ fun normalizePhoneNumber(address: String): String {
         .replace("(", "")
         .replace(")", "")
     if (clean.isBlank()) return ""
-    return if (!clean.startsWith("+") && clean.all { it.isDigit() }) {
+    return if (!clean.startsWith("+") && clean.all { it.isDigit() } && clean.length > 10 && !clean.startsWith("0")) {
         "+$clean"
     } else {
         clean

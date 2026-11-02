@@ -20,6 +20,12 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity): Long
 
+    @Query("SELECT * FROM messages WHERE systemSmsId = :systemId LIMIT 1")
+    suspend fun getBySystemId(systemId: Long): MessageEntity?
+
+    @Query("UPDATE messages SET systemSmsId = :systemId WHERE id = :id")
+    suspend fun linkSystemId(id: Long, systemId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(messages: List<MessageEntity>)
 
@@ -28,6 +34,12 @@ interface MessageDao {
 
     @Query("UPDATE messages SET isRead = :isRead WHERE threadId = :threadId")
     suspend fun markThreadAsRead(threadId: Long, isRead: Boolean = true)
+
+    @Query("UPDATE messages SET isRead = 1 WHERE threadId = :threadId AND id IN (:ids)")
+    suspend fun markMessagesAsRead(threadId: Long, ids: List<Long>)
+
+    @Query("SELECT COUNT(*) FROM messages WHERE threadId = :threadId AND type = 'inbox' AND isRead = 0")
+    suspend fun unreadCount(threadId: Long): Int
 
     @Delete
     suspend fun deleteMessage(message: MessageEntity)

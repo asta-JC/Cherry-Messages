@@ -48,15 +48,15 @@ fun SearchScreen(
                             unfocusedBorderColor = Color.Transparent,
                             focusedContainerColor = CherrySurfaceVariant,
                             unfocusedContainerColor = CherrySurfaceVariant,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ),
                         singleLine = true
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CherrySurface)
@@ -88,7 +88,7 @@ fun SearchScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = message.body,
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.White)
+                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
                         )
                     }
                 }

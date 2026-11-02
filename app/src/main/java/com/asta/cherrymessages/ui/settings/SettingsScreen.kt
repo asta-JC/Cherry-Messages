@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,12 +25,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.asta.cherrymessages.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
+    val appearance by rememberAppearance()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val blockedNumbers by viewModel.blockedNumbers.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     var newBlockNumber by remember { mutableStateOf("") }
@@ -43,7 +45,7 @@ fun SettingsScreen(
                     Text(
                         "Settings",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -51,7 +53,7 @@ fun SettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CherrySurface)
@@ -62,6 +64,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CherrySurface)
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -70,13 +73,13 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Settings,
+                        imageVector = Icons.Rounded.Info,
                         contentDescription = null,
                         tint = CherryTextSecondary,
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "About Cherry Messages // Asta v1.0",
+                        text = "About Cherry Messages · Asta v1.1",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = CherryTextSecondary,
                             fontSize = 10.sp
@@ -95,6 +98,24 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
+                Card(colors = CardDefaults.cardColors(containerColor = CherrySurface), shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(Icons.Rounded.Palette, contentDescription = null, tint = CherryPrimary)
+                            Text("Appearance", style = MaterialTheme.typography.titleMedium, color = CherryTextPrimary)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (mode, label) ->
+                                FilterChip(selected = appearance == mode, onClick = { setAppearance(context, mode) }, label = { Text(label) }, leadingIcon = {
+                                    Icon(when(mode) { "light" -> Icons.Rounded.LightMode; "dark" -> Icons.Rounded.DarkMode; else -> Icons.Rounded.BrightnessAuto }, contentDescription = null, modifier = Modifier.size(18.dp))
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+            item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -109,11 +130,12 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(Icons.Rounded.Notifications, contentDescription = null, tint = CherryPrimary, modifier = Modifier.padding(end = 12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "Push Notifications",
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -131,10 +153,10 @@ fun SettingsScreen(
                             checked = notificationsEnabled,
                             onCheckedChange = { viewModel.toggleNotifications(it) },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                                 checkedTrackColor = CherryPrimary,
                                 checkedBorderColor = CherryPrimary,
-                                uncheckedThumbColor = Color.White,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
                                 uncheckedTrackColor = CherrySurfaceVariant,
                                 uncheckedBorderColor = CherryBorder
                             )
@@ -152,6 +174,8 @@ fun SettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = CherrySurface)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Rounded.Block, contentDescription = null, tint = CherryPrimary)
                         Text(
                             "Blocked Numbers & Spam",
                             style = MaterialTheme.typography.titleSmall.copy(
@@ -160,6 +184,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                         )
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
@@ -174,7 +199,7 @@ fun SettingsScreen(
                                     Text(
                                         "+",
                                         style = MaterialTheme.typography.bodyMedium.copy(
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -193,8 +218,8 @@ fun SettingsScreen(
                                     unfocusedBorderColor = Color.Transparent,
                                     focusedContainerColor = CherrySurfaceVariant,
                                     unfocusedContainerColor = CherrySurfaceVariant,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -210,6 +235,8 @@ fun SettingsScreen(
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = CherryPrimary)
                             ) {
+                                Icon(Icons.Rounded.Block, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
                                 Text("Block", fontSize = 12.sp)
                             }
                         }
@@ -238,7 +265,7 @@ fun SettingsScreen(
                             Text(
                                 blocked.phoneNumber,
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 13.sp
                                 )
                             )
@@ -267,7 +294,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Settings,
+                                imageVector = Icons.Rounded.Info,
                                 contentDescription = null,
                                 tint = CherryPrimary,
                                 modifier = Modifier.size(16.dp)
@@ -283,15 +310,15 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            "Cherry Messages // Asta v1.0",
+                            "Cherry Messages · Asta v1.1",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         )
                         Text(
-                            "Secure SMS Application",
+                            "SMS messaging for Android",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = CherryTextSecondary,
                                 fontSize = 10.sp

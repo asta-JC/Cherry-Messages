@@ -31,10 +31,10 @@ fun StarredMessagesScreen(
         containerColor = CherryBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Starred messages", style = MaterialTheme.typography.titleMedium.copy(color = Color.White)) },
+                title = { Text("Starred messages", style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CherrySurface)
@@ -72,7 +72,7 @@ fun StarredMessagesScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = message.body,
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.White)
+                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
                         )
                     }
                 }

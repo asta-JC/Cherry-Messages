@@ -26,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.repeatOnLifecycle
 import com.asta.cherrymessages.R
 import com.asta.cherrymessages.data.local.entity.MessageEntity
 import com.asta.cherrymessages.ui.theme.*
@@ -34,105 +35,7 @@ import java.util.*
 
 @Composable
 fun CherryGlowBackground(content: @Composable BoxScope.() -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CherryBackground)
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(CherryBackground.copy(alpha = 0.2f))
-        )
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
-
-            // Top-left glowing cherry circle
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CherryPrimary.copy(alpha = 0.30f),
-                        CherryGlow.copy(alpha = 0.15f),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(width * 0.10f, height * 0.12f),
-                    radius = width * 0.70f
-                ),
-                radius = width * 0.70f,
-                center = androidx.compose.ui.geometry.Offset(width * 0.10f, height * 0.12f)
-            )
-
-            // Upper-right glowing cherry circle
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CherryPrimaryVariant.copy(alpha = 0.25f),
-                        CherryGlow.copy(alpha = 0.12f),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(width * 0.90f, height * 0.28f),
-                    radius = width * 0.65f
-                ),
-                radius = width * 0.65f,
-                center = androidx.compose.ui.geometry.Offset(width * 0.90f, height * 0.28f)
-            )
-
-            // Middle-left glowing cherry translucent circle
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CherryPrimary.copy(alpha = 0.22f),
-                        CherryGlow.copy(alpha = 0.10f),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(width * 0.05f, height * 0.55f),
-                    radius = width * 0.60f
-                ),
-                radius = width * 0.60f,
-                center = androidx.compose.ui.geometry.Offset(width * 0.05f, height * 0.55f)
-            )
-
-            // Lower-right glowing cherry circle
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CherryPrimary.copy(alpha = 0.28f),
-                        CherryGlow.copy(alpha = 0.14f),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.80f),
-                    radius = width * 0.75f
-                ),
-                radius = width * 0.75f,
-                center = androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.80f)
-            )
-
-            // Bottom-left subtle cherry orb
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CherryPrimaryVariant.copy(alpha = 0.20f),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(width * 0.25f, height * 0.92f),
-                    radius = width * 0.50f
-                ),
-                radius = width * 0.50f,
-                center = androidx.compose.ui.geometry.Offset(width * 0.25f, height * 0.92f)
-            )
-        }
-
-        content()
-    }
+    Box(modifier = Modifier.fillMaxSize().background(CherryBackground), content = content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,13 +44,34 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
-    val messages by viewModel.messages.collectAsState()
+    val loadedMessages by viewModel.messages.collectAsState()
+    val messages = loadedMessages ?: run {
+        Box(Modifier.fillMaxSize().background(CherryBackground), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
     val messageInput by viewModel.messageInput.collectAsState()
-    val listState = rememberLazyListState()
+    val firstUnreadId by androidx.compose.runtime.saveable.rememberSaveable(viewModel.threadId) {
+        mutableStateOf(messages.firstOrNull { it.type == "inbox" && !it.isRead }?.id)
+    }
+    val newestFirst = remember(messages) { messages.asReversed() }
+    val initialIndex = newestFirst.indexOfFirst { it.id == firstUnreadId }.coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(listState, lifecycle, messages) {
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            snapshotFlow { listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Long } }
+                .collect { visibleIds ->
+                    viewModel.markVisibleMessagesAsRead(messages.filter { it.id in visibleIds && !it.isRead })
+                }
+        }
+    }
+    var previousNewestId by remember { mutableStateOf(messages.lastOrNull()?.id) }
+    LaunchedEffect(messages.lastOrNull()?.id) {
+        val newest = messages.lastOrNull()
+        if (newest != null && newest.id != previousNewestId) {
+            if (listState.firstVisibleItemIndex <= 1 || newest.type == "sent" || newest.type == "outbox") listState.scrollToItem(0)
+            previousNewestId = newest.id
         }
     }
 
@@ -160,7 +84,7 @@ fun ChatScreen(
                         Column {
                             Text(
                                 text = viewModel.address,
-                                style = MaterialTheme.typography.titleMedium.copy(color = Color.White)
+                                style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface)
                             )
                             Text(
                                 text = "Text message",
@@ -170,7 +94,7 @@ fun ChatScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = CherrySurface.copy(alpha = 0.95f))
@@ -189,51 +113,33 @@ fun ChatScreen(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
+                        com.asta.cherrymessages.ui.components.SmsMessageField(
                             value = messageInput,
-                            onValueChange = { viewModel.updateMessageInput(it) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .border(1.dp, CherryBorder, RoundedCornerShape(24.dp)),
-                            placeholder = { Text("Type a message...", color = CherryTextSecondary) },
-                            shape = RoundedCornerShape(24.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CherryPrimary,
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedContainerColor = CherrySurfaceVariant,
-                                unfocusedContainerColor = CherrySurfaceVariant,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
+                            onValueChange = viewModel::updateMessageInput,
+                            modifier = Modifier.weight(1f),
                             maxLines = 4
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        IconButton(
+                        Button(
                             onClick = { viewModel.sendMessage() },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(CherryPrimary, CherryPrimaryVariant)
-                                    )
-                                )
+                            enabled = messageInput.isNotBlank() && com.asta.cherrymessages.ui.components.smsLength(messageInput).parts <= com.asta.cherrymessages.ui.components.MAX_SMS_PARTS,
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            modifier = Modifier.heightIn(min = 48.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.Send,
-                                contentDescription = "Send",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Send")
                         }
+
                     }
                 }
             }
         ) { innerPadding ->
             LazyColumn(
                 state = listState,
+                reverseLayout = true,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -241,11 +147,16 @@ fun ChatScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(messages, key = { it.id }) { message ->
+                items(newestFirst, key = { it.id }) { message ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (message.id == firstUnreadId) {
+                        Text("Unread messages", color = CherryPrimary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+                    }
                     MessageBubble(
                         message = message,
                         onStarClick = { viewModel.toggleStar(message.id, message.isStarred) }
                     )
+                    }
                 }
             }
         }
@@ -298,7 +209,7 @@ fun MessageBubble(
                 Text(
                     text = message.body,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 15.sp
                     )
                 )
@@ -326,6 +237,12 @@ fun MessageBubble(
                         )
                     )
                     if (isSent) {
+                        Text(when(message.status) {
+                            "failed" -> "Not sent · check SIM and SMS permission"
+                            "pending" -> "Sending…"
+                            "delivered" -> "Delivered"
+                            else -> "Sent"
+                        }, style = MaterialTheme.typography.labelSmall, color = if(message.status == "failed") CherryError else CherryTextSecondary, modifier = Modifier.weight(1f, fill = false))
                         Icon(
                             imageVector = when (message.status) {
                                 "delivered" -> Icons.Rounded.DoneAll

@@ -23,21 +23,24 @@ class ChatViewModel @AssistedInject constructor(
     val threadId: Long = screen.threadId
     val address: String = screen.address
 
-    val messages: StateFlow<List<MessageEntity>> = smsRepository.getMessagesForThread(threadId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val messages: StateFlow<List<MessageEntity>?> = smsRepository.getMessagesForThread(threadId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _messageInput = MutableStateFlow("")
     val messageInput: StateFlow<String> = _messageInput.asStateFlow()
 
     init {
         viewModelScope.launch {
-            smsRepository.markThreadAsRead(threadId)
-            draftRepository.getDraft(threadId).collect { draft ->
+            draftRepository.getDraft(threadId).take(1).collect { draft ->
                 if (draft != null && _messageInput.value.isBlank()) {
                     _messageInput.value = draft.body
                 }
             }
         }
+    }
+
+    fun markVisibleMessagesAsRead(messages: List<MessageEntity>) {
+        viewModelScope.launch { smsRepository.markVisibleMessagesAsRead(threadId, messages) }
     }
 
     fun updateMessageInput(input: String) {
@@ -52,9 +55,9 @@ class ChatViewModel @AssistedInject constructor(
         if (body.isBlank()) return
 
         viewModelScope.launch {
-            smsRepository.sendMessage(threadId, address, body)
             _messageInput.value = ""
             draftRepository.deleteDraft(threadId)
+            smsRepository.sendMessage(threadId, address, body)
         }
     }
 

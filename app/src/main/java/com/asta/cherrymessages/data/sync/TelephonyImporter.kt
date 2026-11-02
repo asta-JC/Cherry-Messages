@@ -9,6 +9,8 @@ import com.asta.cherrymessages.data.local.entity.ConversationEntity
 import com.asta.cherrymessages.data.local.entity.MessageEntity
 import com.asta.cherrymessages.util.normalizePhoneNumber
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -20,11 +22,20 @@ class TelephonyImporter @Inject constructor(
     private val messageDao: MessageDao,
     private val conversationDao: ConversationDao
 ) {
+    private val importMutex = Mutex()
+
     companion object {
         private const val TAG = "TelephonyImporter"
     }
 
-    suspend fun importSmsIfNeeded(): Boolean = withContext(Dispatchers.IO) {
+    private fun contactName(address: String): String? = try {
+        context.contentResolver.query(
+            android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(address)),
+            arrayOf(android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME), null, null, null
+        )?.use { if (it.moveToFirst()) it.getString(0) else null }
+    } catch (_: SecurityException) { null }
+
+    suspend fun importSmsIfNeeded(): Boolean = importMutex.withLock { withContext(Dispatchers.IO) {
         try {
             val cursor = context.contentResolver.query(
                 Telephony.Sms.CONTENT_URI,
@@ -77,12 +88,14 @@ class TelephonyImporter @Inject constructor(
                         body = body,
                         timestamp = date,
                         type = typeStr,
-                        status = if (typeStr == "sent") "sent" else "received",
+                        status = when (typeStr) { "sent" -> "sent"; "outbox" -> "pending"; "failed" -> "failed"; else -> "received" },
                         isRead = isRead,
                         systemSmsId = systemId
                     )
-                    messages.add(message)
-                    conversationMap.getOrPut(threadId) { mutableListOf() }.add(message)
+                    val existing = messageDao.getBySystemId(systemId)
+                    val merged = if (existing != null) message.copy(id = existing.id, isRead = message.isRead || existing.isRead, isStarred = existing.isStarred, isPinned = existing.isPinned) else message
+                    messages.add(merged)
+                    conversationMap.getOrPut(threadId) { mutableListOf() }.add(merged)
                 }
             }
 
@@ -92,7 +105,12 @@ class TelephonyImporter @Inject constructor(
                 val conversations = conversationMap.map { (threadId, threadMessages) ->
                     val latest = threadMessages.maxByOrNull { it.timestamp }
                     val unreadCount = threadMessages.count { !it.isRead && it.type == "inbox" }
+                    val existing = conversationDao.getConversationByThreadId(threadId)
                     ConversationEntity(
+                        isPinned = existing?.isPinned ?: false,
+                        isArchived = existing?.isArchived ?: false,
+                        isMuted = existing?.isMuted ?: false,
+                        recipientName = contactName(latest?.address ?: ""),
                         threadId = threadId,
                         recipientAddress = latest?.address ?: "",
                         snippet = latest?.body ?: "",
@@ -107,5 +125,6 @@ class TelephonyImporter @Inject constructor(
             Log.e(TAG, "Failed to import system SMS", e)
             false
         }
+    }
     }
 }

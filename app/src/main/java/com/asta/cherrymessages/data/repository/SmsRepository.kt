@@ -73,7 +73,7 @@ class SmsRepository @Inject constructor(
         return if (systemThreadId > 0L) systemThreadId else cleanAddress.hashCode().toLong()
     }
 
-    suspend fun sendMessage(threadId: Long, address: String, body: String): Long {
+    suspend fun sendMessage(threadId: Long, address: String, body: String): Long = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val cleanAddress = normalizePhoneNumber(address)
         val resolvedThreadId = if (threadId <= 0L) getOrCreateThreadId(cleanAddress) else threadId
 
@@ -96,16 +96,23 @@ class SmsRepository @Inject constructor(
                 put(Telephony.Sms.BODY, body)
                 put(Telephony.Sms.DATE, timestamp)
                 put(Telephony.Sms.READ, 1)
-                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
+                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_OUTBOX)
                 put(Telephony.Sms.THREAD_ID, resolvedThreadId)
             }
-            application.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+            application.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)?.let {
+                messageDao.linkSystemId(id, android.content.ContentUris.parseId(it))
+            }
         } catch (e: Exception) {
             Log.w("SmsRepository", "Could not insert sent SMS into system provider", e)
         }
 
         // Update or insert conversation
+        val existingConversation = conversationDao.getConversationByThreadId(resolvedThreadId)
         val conversation = ConversationEntity(
+            recipientName = existingConversation?.recipientName,
+            isPinned = existingConversation?.isPinned ?: false,
+            isMuted = existingConversation?.isMuted ?: false,
+            isArchived = existingConversation?.isArchived ?: false,
             threadId = resolvedThreadId,
             recipientAddress = cleanAddress,
             snippet = body,
@@ -121,9 +128,9 @@ class SmsRepository @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            Log.w("SmsRepository", "SEND_SMS permission not granted, marking as sent locally")
-            messageDao.updateMessageStatus(id, "sent")
-            return id
+            Log.w("SmsRepository", "SEND_SMS permission not granted, marking as failed")
+            messageDao.updateMessageStatus(id, "failed")
+            return@withContext id
         }
 
         // Send via SmsManager with multipart support and FLAG_IMMUTABLE pending intents
@@ -142,6 +149,8 @@ class SmsRepository @Inject constructor(
             for (i in parts.indices) {
                 val sentIntent = Intent(application, SendStatusReceiver::class.java).apply {
                     putExtra(SendStatusReceiver.EXTRA_MESSAGE_ID, id)
+                    putExtra("part_count", parts.size)
+                    putExtra("part_index", i)
                 }
                 sentIntents.add(
                     PendingIntent.getBroadcast(
@@ -154,6 +163,8 @@ class SmsRepository @Inject constructor(
 
                 val deliveryIntent = Intent(application, DeliveryStatusReceiver::class.java).apply {
                     putExtra(DeliveryStatusReceiver.EXTRA_MESSAGE_ID, id)
+                    putExtra("part_count", parts.size)
+                    putExtra("part_index", i)
                 }
                 deliveryIntents.add(
                     PendingIntent.getBroadcast(
@@ -175,7 +186,7 @@ class SmsRepository @Inject constructor(
             messageDao.updateMessageStatus(id, "failed")
         }
 
-        return id
+        return@withContext id
     }
 
     suspend fun insertIncomingMessage(threadId: Long, address: String, body: String): Long {
@@ -193,15 +204,30 @@ class SmsRepository @Inject constructor(
         )
         val id = messageDao.insertMessage(message)
         
+        val existingConversation = conversationDao.getConversationByThreadId(resolvedThreadId)
         val conversation = ConversationEntity(
+            recipientName = existingConversation?.recipientName,
+            isPinned = existingConversation?.isPinned ?: false,
+            isMuted = existingConversation?.isMuted ?: false,
+            isArchived = existingConversation?.isArchived ?: false,
             threadId = resolvedThreadId,
             recipientAddress = cleanAddress,
             snippet = body,
             date = message.timestamp,
-            unreadCount = 1
+            unreadCount = messageDao.unreadCount(resolvedThreadId)
         )
         conversationDao.upsertConversation(conversation)
         return id
+    }
+
+    suspend fun linkSystemMessage(id: Long, systemId: Long) {
+        messageDao.linkSystemId(id, systemId)
+        if (messageDao.getMessageById(id)?.isRead == true) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            application.contentResolver.update(android.content.ContentUris.withAppendedId(Telephony.Sms.CONTENT_URI, systemId), ContentValues().apply {
+                put(Telephony.Sms.READ, 1)
+                put(Telephony.Sms.SEEN, 1)
+            }, null, null)
+        }
     }
 
     suspend fun syncSystemSms(): Boolean {
@@ -209,7 +235,34 @@ class SmsRepository @Inject constructor(
     }
 
     suspend fun markThreadAsRead(threadId: Long) {
-        messageDao.markThreadAsRead(threadId, true)
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (Telephony.Sms.getDefaultSmsPackage(application) == application.packageName) {
+                application.contentResolver.update(Telephony.Sms.CONTENT_URI, ContentValues().apply {
+                    put(Telephony.Sms.READ, 1)
+                    put(Telephony.Sms.SEEN, 1)
+                }, "${Telephony.Sms.THREAD_ID} = ?", arrayOf(threadId.toString()))
+            }
+            messageDao.markThreadAsRead(threadId, true)
+            conversationDao.refreshUnreadCount(threadId)
+            application.getSystemService(android.app.NotificationManager::class.java).cancel(threadId.toInt())
+        }
+    }
+
+    suspend fun markVisibleMessagesAsRead(threadId: Long, messages: List<MessageEntity>) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val unread = messages.filter { it.threadId == threadId && it.type == "inbox" && !it.isRead }
+        if (unread.isEmpty()) return@withContext
+        val systemIds = unread.mapNotNull { it.systemSmsId }
+        if (systemIds.isNotEmpty() && Telephony.Sms.getDefaultSmsPackage(application) == application.packageName) {
+            application.contentResolver.update(Telephony.Sms.CONTENT_URI, ContentValues().apply {
+                put(Telephony.Sms.READ, 1)
+                put(Telephony.Sms.SEEN, 1)
+            }, "${Telephony.Sms._ID} IN (${systemIds.joinToString { "?" }})", systemIds.map { it.toString() }.toTypedArray())
+        }
+        messageDao.markMessagesAsRead(threadId, unread.map { it.id })
+        conversationDao.refreshUnreadCount(threadId)
+        if (messageDao.unreadCount(threadId) == 0) {
+            application.getSystemService(android.app.NotificationManager::class.java).cancel(threadId.toInt())
+        }
     }
 
     suspend fun deleteThread(threadId: Long) {
